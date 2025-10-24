@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}
+Login
+{% endblock %}
+{% load socialaccount %}
+{% block content %}
+
+<h2>Login</h2>
+
+<form method="post" action="{% provider_login_url 'github' process='login' next='/users/github/repos/' %}">
+  {% csrf_token %}
+  <button type="submit">Login with GitHub</button>
+</form>
+
+{% endblock %}
+
+

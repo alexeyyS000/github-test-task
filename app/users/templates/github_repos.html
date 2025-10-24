@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>GitHub Repositories for {{ request.user.username }} </h1>
+
+  <form method="post" action="{% url 'account_logout' %}" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Выйти</button>
+  </form>
+
+  {% if avatar_url %}
+    <img src="{{ avatar_url }}" alt="avatar" style="width:64px;height:64px;border-radius:8px;">
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-warning">{{ error }}</div>
+  {% endif %}
+
+  {% if repos %}
+    <ul>
+      {% for repo in repos %}
+        <li>
+          <a href="{{ repo.html_url }}" target="_blank">{{ repo.full_name }}</a>
+          {% if repo.description %}<p>{{ repo.description }}</p>{% endif %}
+          <p>⭐ {{ repo.stargazers_count }} • Forks: {{ repo.forks_count }} • Language: {{ repo.language|default:"—" }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No repositories found.</p>
+  {% endif %}
+{% endblock %}
