@@ -1,8 +1,9 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 class GitHubRepo(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='github_repos')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="github_repos")
     github_id = models.BigIntegerField()
     name = models.CharField(max_length=300)
     full_name = models.CharField(max_length=400)
@@ -14,8 +15,8 @@ class GitHubRepo(models.Model):
     private = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = (('user', 'github_id'),)
-        ordering = ['-stargazers_count']
+        unique_together = (("user", "github_id"),)
+        ordering = ["-stargazers_count"]
 
     def __str__(self):
         return f"{self.full_name}"

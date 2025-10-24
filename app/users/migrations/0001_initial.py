@@ -2,7 +2,8 @@
 
 import django.db.models.deletion
 from django.conf import settings
-from django.db import migrations, models
+from django.db import migrations
+from django.db import models
 
 
 class Migration(migrations.Migration):
@@ -15,23 +16,30 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='GitHubRepo',
+            name="GitHubRepo",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('github_id', models.BigIntegerField()),
-                ('name', models.CharField(max_length=300)),
-                ('full_name', models.CharField(max_length=400)),
-                ('html_url', models.URLField(max_length=1000)),
-                ('description', models.TextField(blank=True, null=True)),
-                ('stargazers_count', models.IntegerField(default=0)),
-                ('forks_count', models.IntegerField(default=0)),
-                ('language', models.CharField(blank=True, max_length=100, null=True)),
-                ('private', models.BooleanField(default=False)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='github_repos', to=settings.AUTH_USER_MODEL)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("github_id", models.BigIntegerField()),
+                ("name", models.CharField(max_length=300)),
+                ("full_name", models.CharField(max_length=400)),
+                ("html_url", models.URLField(max_length=1000)),
+                ("description", models.TextField(blank=True, null=True)),
+                ("stargazers_count", models.IntegerField(default=0)),
+                ("forks_count", models.IntegerField(default=0)),
+                ("language", models.CharField(blank=True, max_length=100, null=True)),
+                ("private", models.BooleanField(default=False)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="github_repos",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-stargazers_count'],
-                'unique_together': {('user', 'github_id')},
+                "ordering": ["-stargazers_count"],
+                "unique_together": {("user", "github_id")},
             },
         ),
     ]
