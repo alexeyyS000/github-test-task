@@ -4,7 +4,6 @@ from allauth.socialaccount.models import SocialToken
 from django.db import transaction
 from users.models import GitHubRepo
 
-
 def _get_github_token_for_user(user):
     try:
         account = SocialAccount.objects.get(user=user, provider="github")
@@ -40,7 +39,6 @@ def fetch_all_user_repos(token):
             break
         page += 1
     return repos
-
 
 @transaction.atomic
 def sync_user_repos_to_db(user):
