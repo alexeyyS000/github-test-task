@@ -4,7 +4,7 @@ from allauth.socialaccount.models import SocialToken
 from django.db import transaction
 from users.models import GitHubRepo
 
-def _get_github_token_for_user(user):
+def get_github_token_for_user(user):
     try:
         account = SocialAccount.objects.get(user=user, provider="github")
     except SocialAccount.DoesNotExist:
@@ -42,12 +42,8 @@ def fetch_all_user_repos(token):
 
 @transaction.atomic
 def sync_user_repos_to_db(user):
-    token, avatar_url = _get_github_token_for_user(user)
-    if not token:
-        return {"ok": False, "reason": "no_token"}
+    token, avatar_url = get_github_token_for_user(user)
     api_repos = fetch_all_user_repos(token)
-    if not api_repos:
-        return {"ok": False, "reason": "no_api_repos"}
     api_map = {repo["id"]: repo for repo in api_repos}
     existing = GitHubRepo.objects.filter(user=user)
     existing_map = {r.github_id: r for r in existing}

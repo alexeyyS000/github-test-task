@@ -15,7 +15,9 @@ class GitHubRepo(models.Model):
     private = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = (("user", "github_id"),)
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'github_id'], name='unique_user_github')
+        ]
         ordering = ["-stargazers_count"]
 
     def __str__(self):
