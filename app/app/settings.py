@@ -167,7 +167,4 @@ LOGIN_REDIRECT_URL = "/users/github/repos/"
 LOGOUT_REDIRECT_URL = "/users/login/"
 
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://127.0.0.1',
-    'https://127.0.0.1'
-]
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1", "https://127.0.0.1"]
