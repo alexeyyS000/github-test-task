@@ -20,9 +20,6 @@ class GitHubReposView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["repos"] = []
-        context["avatar_url"] = None
-        context["error"] = None
 
         try:
             account = SocialAccount.objects.get(user=self.request.user, provider="github")

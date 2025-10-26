@@ -1,0 +1,41 @@
+.env.local
+.env.dev
+.env.development
+.env.test
+.env.production.local
+
+# 🗃️ VCS
+.git
+.gitignore
+
+# 📦 Virtual environments
+venv/
+.venv/
+
+# 🧱 Build and cache
+*.bak
+*.tmp
+*.swp
+.DS_Store
+.idea/
+.vscode/
+.cache/
+.mypy_cache/
+pytest_cache/
+coverage.xml
+
+# 📁 Node / Frontend build artifacts (если есть)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+dist/
+build/
+
+# 📦 Docker-specific
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ==============================
+# End of dockerignore
+# ==============================

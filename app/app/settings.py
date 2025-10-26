@@ -28,12 +28,12 @@ else:
     load_dotenv(override=False)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-@s662sthwv^%!gq8898kx!xuw#vibp%5338mjl939-#t-e3+no"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -154,7 +154,20 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+STATIC_ROOT = BASE_DIR / "statics"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_REDIRECT_URL = "/users/github/repos/"
 LOGOUT_REDIRECT_URL = "/users/login/"
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1',
+    'https://127.0.0.1'
+]
