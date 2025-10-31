@@ -2,30 +2,135 @@
 {% block content %}
   <h1>GitHub Repositories for {{ request.user.username }} </h1>
 
-  <form method="post" action="{% url 'account_logout' %}" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-danger">Выйти</button>
-  </form>
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
+  <div>
+    <form method="post" action="{% url 'account_logout' %}" style="display:inline;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Выйти</button>
+    </form>
+    <button id="sync-btn" class="btn btn-primary" style="margin-left:8px;">Synchronization</button>
+    <button id="reload-btn" class="btn btn-secondary" style="margin-left:8px;">Reload page</button>
+    <span id="sync-status" style="margin-left:12px;"></span>
+  </div>
 
   {% if avatar_url %}
     <img src="{{ avatar_url }}" alt="avatar" style="width:64px;height:64px;border-radius:8px;">
   {% endif %}
+</div>
 
-  {% if error %}
-    <div class="alert alert-warning">{{ error }}</div>
-  {% endif %}
 
   {% if repos %}
-    <ul>
-      {% for repo in repos %}
-        <li>
-          <a href="{{ repo.html_url }}" target="_blank">{{ repo.full_name }}</a>
-          {% if repo.description %}<p>{{ repo.description }}</p>{% endif %}
-          <p>⭐ {{ repo.stargazers_count }} • Forks: {{ repo.forks_count }} • Language: {{ repo.language|default:"—" }}</p>
-        </li>
-      {% endfor %}
-    </ul>
+    <style>
+      /* Subtle highlighting for disabled repos */
+      .repo-disabled { background-color: #f8d7da; }
+      .repo-disabled a { color: #721c24; }
+      /* Make disabled rows stand out more in Bootstrap table */
+      .repo-disabled td { border-left: 4px solid #f5c6cb; }
+      /* Truncate long descriptions */
+      .repo-desc { max-width: 48rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+
+    <div class="table-responsive" style="margin-top:16px;">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Repository</th>
+            <th>Description</th>
+            <th>Stars</th>
+            <th>Forks</th>
+            <th>Language</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for repo in repos %}
+            <tr class="{% if repo.disabled %}repo-disabled table-danger{% endif %}">
+              <td>
+                <a href="{{ repo.html_url }}" target="_blank" rel="noopener noreferrer">{{ repo.full_name }}</a>
+                {% if repo.private %}
+                  <span class="badge bg-secondary" style="margin-left:6px;">Private</span>
+                {% endif %}
+              </td>
+              <td class="repo-desc">{{ repo.description|default_if_none:"—" }}</td>
+              <td>⭐ {{ repo.stargazers_count }}</td>
+              <td>{{ repo.forks_count }}</td>
+              <td>{{ repo.language|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <nav aria-label="Page navigation">
+      <ul class="pagination">
+        {% if repos.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page_num={{ repos.previous_page_number }}&page_size={{ repos.paginator.per_page }}">Previous</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Previous</span></li>
+        {% endif %}
+
+        <li class="page-item disabled"><span class="page-link">Page {{ repos.number }} of {{ repos.paginator.num_pages }}</span></li>
+
+        {% if repos.has_next %}
+          <li class="page-item"><a class="page-link" href="?page_num={{ repos.next_page_number }}&page_size={{ repos.paginator.per_page }}">Next</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Next</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+
   {% else %}
-    <p>No repositories found.</p>
+    <p style="margin-top:12px;">No repositories found.</p>
   {% endif %}
+
+<script>
+(function(){
+  const syncBtn = document.getElementById('sync-btn');
+  const reloadBtn = document.getElementById('reload-btn');
+  const status = document.getElementById('sync-status');
+
+  function getCsrfToken(){
+    const cookie = document.cookie.split(';').map(c=>c.trim()).find(c=>c.startsWith('csrftoken='));
+    return cookie ? cookie.split('=')[1] : '';
+  }
+
+  syncBtn && syncBtn.addEventListener('click', function(){
+    status.textContent = 'Starting synchronization...';
+    syncBtn.disabled = true;
+
+    fetch('{% url "trigger_sync_repos" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+        'Accept': 'application/json',
+      },
+      credentials: 'same-origin',
+    }).then(r => {
+      if (r.status === 202) {
+        status.textContent = 'Synchronization enqueued.';
+        syncBtn.style.backgroundColor = ''; // вернуть стандартный цвет
+      } else if (r.status === 403 || r.status === 429) {
+        status.textContent = 'Rate limit exceeded';
+        syncBtn.style.backgroundColor = 'red'; // красим кнопку
+      } else {
+        status.textContent = 'Error: ' + r.statusText;
+      }
+    }).catch(err => {
+      status.textContent = 'Network error';
+    }).finally(() => {
+      syncBtn.disabled = false;
+      setTimeout(() => {
+        status.textContent = '';
+        syncBtn.style.backgroundColor = '';
+      }, 5000);
+    });
+  });
+
+  reloadBtn && reloadBtn.addEventListener('click', function(){
+    window.location.reload();
+  });
+})();
+</script>
+
+
 {% endblock %}

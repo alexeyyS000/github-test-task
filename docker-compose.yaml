@@ -30,6 +30,20 @@ services:
     depends_on:
       - app
 
+  worker:
+    restart: always
+    build: .
+    command: celery -A app worker -l INFO
+    env_file:
+      - .env
+    depends_on:
+      - app
+
+  redis:
+    restart: always
+    image: redis:7.0-alpine
+
+
   migrate:
     build: .
     depends_on:

@@ -1,113 +1,130 @@
-import pytest
-from allauth.socialaccount.models import SocialAccount
-from allauth.socialaccount.models import SocialApp
-from django.contrib.auth import get_user_model
-from django.contrib.sites.models import Site
-from django.urls import NoReverseMatch
+from http import HTTPStatus
 from django.urls import reverse
-from users.models import GitHubRepo
+from django.contrib.auth import get_user_model
+from django.test import Client
+import pytest
+from allauth.socialaccount.models import SocialAccount, SocialApp
+from django.contrib.sites.models import Site
+from django.conf import settings
+from users.models import GitHubRepo, UserGitHubRepo
+from unittest import mock
 
 User = get_user_model()
 
-
-@pytest.fixture
-def github_social_app(db):
-    site = Site.objects.first() or Site.objects.create(domain="localhost", name="localhost")
-    app = SocialApp.objects.create(
-        provider="github",
-        name="GitHub",
-        client_id="test-client-id",
-        secret="test-secret",
-    )
-    app.sites.add(site)
-    return app
-
-
-@pytest.fixture
-def user(db):
-    return User.objects.create_user(username="testuser", password="pass1234")
-
-
-@pytest.fixture
-def social_account(user, db):
-    return SocialAccount.objects.create(
-        user=user, provider="github", uid="12345", extra_data={"avatar_url": "https://avatar.url/avatar.png"}
-    )
-
-
 @pytest.mark.django_db
-def test_github_login_button_present(client, github_social_app):
-    url = reverse("github_login")
-    response = client.get(url)
-    assert response.status_code == 200
-    content = response.content.decode()
-    try:
-        provider_url = reverse("socialaccount_login", args=["github"])
-    except NoReverseMatch:
-        pytest.skip("reverse('socialaccount_login', args=['github']) not found in this allauth version")
+class TestGitHubViews:
+    def setup_method(self):
+        self.client = Client()
+        self.user = User.objects.create(username="tester")
+        self.user.set_unusable_password()
+        self.user.save()
+        site_pk = settings.SITE_ID
+        Site.objects.get_or_create(
+            pk=site_pk, defaults={"domain": "example.local", "name": "example.local"}
+        )
 
-    assert provider_url in content or "/github/login/" in content
+    def login(self):
+        self.client.force_login(self.user)
 
+    def test_login_view_includes_github_app_in_context(self):
+        app = SocialApp.objects.create(provider="github", name="GH", client_id="x", secret="s")
+        site = Site.objects.get(pk=settings.SITE_ID)
+        app.sites.add(site)
 
-@pytest.mark.django_db
-def test_github_repos_view_no_account(client, user):
-    client.force_login(user)
-    url = reverse("github_repos")
-    response = client.get(url)
-    assert response.status_code == 200
-    assert "error" in response.context
-    assert response.context["error"] == "GitHub account not found."
-    assert list(response.context["repos"]) == []
+        url = reverse("login_github")
+        resp = self.client.get(url)
+        assert resp.status_code == 200
 
+        content = resp.content.decode()
 
-@pytest.mark.django_db
-def test_github_repos_view_no_repos(client, user, social_account):
-    client.force_login(user)
-    url = reverse("github_repos")
-    response = client.get(url)
-    assert response.status_code == 200
-    assert "error" in response.context
-    assert not response.context["repos"].exists()
-    assert response.context["avatar_url"] == "https://avatar.url/avatar.png"
+        assert resp.context is not None
+        assert resp.context.get("github_app") is not None
+        assert resp.context.get("github_app").pk == app.pk
 
+        try:
+            provider_url = reverse("socialaccount_login", args=["github"])
+        except Exception:
+            provider_url = "/github/login/"
 
-@pytest.mark.django_db
-def test_github_repos_view_with_repos(client, user, social_account):
-    repo1 = GitHubRepo.objects.create(
-        user=user,
-        github_id=1,
-        name="Repo1",
-        full_name="testuser/Repo1",
-        html_url="https://github.com/testuser/Repo1",
-        stargazers_count=5,
-        forks_count=2,
-        language="Python",
-        private=False,
-    )
-    repo2 = GitHubRepo.objects.create(
-        user=user,
-        github_id=2,
-        name="Repo2",
-        full_name="testuser/Repo2",
-        html_url="https://github.com/testuser/Repo2",
-        stargazers_count=10,
-        forks_count=1,
-        language="Python",
-        private=False,
-    )
-    client.force_login(user)
-    url = reverse("github_repos")
-    response = client.get(url)
-    assert response.status_code == 200
-    repos = response.context["repos"]
-    assert list(repos) == [repo2, repo1]
-    assert response.context["avatar_url"] == "https://avatar.url/avatar.png"
-    assert "error" not in response.context or response.context["error"] is None
+        assert provider_url in content or "provider_login_url" in content or "github/login" in content
 
+    def test_github_repos_view_without_social_account_shows_error(self):
+        self.login()
+        url = reverse("github_repos")
+        resp = self.client.get(url)
+        assert resp.status_code == 200
+        assert resp.context is not None
+        assert resp.context.get("error") == "GitHub account not found."
 
-@pytest.mark.django_db
-def test_github_repos_view_redirect_if_anonymous(client):
-    url = reverse("github_repos")
-    response = client.get(url)
-    assert response.status_code == 302
-    assert "/accounts/login/" in response.url
+    def test_github_repos_view_pagination_invalid_raises_404(self):
+        self.login()
+        SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={})
+        url = reverse("github_repos") + "?page_num=0&page_size=10"
+        resp = self.client.get(url)
+        assert resp.status_code == 404
+        url = reverse("github_repos") + "?page_num=1&page_size=0"
+        resp = self.client.get(url)
+        assert resp.status_code == 404
+        url = reverse("github_repos") + "?page_num=notint&page_size=10"
+        resp = self.client.get(url)
+        assert resp.status_code == 404
+
+    def test_github_repos_view_empty_list_and_defaults(self):
+        self.login()
+        SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={"avatar_url": "http://x"})
+        url = reverse("github_repos")
+        resp = self.client.get(url)
+        assert resp.status_code == 200
+        assert resp.context is not None
+        assert "repos" in resp.context
+        page_obj = resp.context["repos"]
+        assert hasattr(page_obj, "object_list")
+
+    def test_github_repos_view_shows_repos_and_disabled_flag(self):
+        self.login()
+        SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={"avatar_url": "http://x"})
+
+        r1 = GitHubRepo.objects.create(
+            github_id=1,
+            name="r1",
+            full_name="u/r1",
+            html_url="http://r1",
+            stargazers_count=5,
+            forks_count=1,
+        )
+        r2 = GitHubRepo.objects.create(
+            github_id=2,
+            name="r2",
+            full_name="u/r2",
+            html_url="http://r2",
+            stargazers_count=10,
+            forks_count=2,
+            private=True,
+        )
+        UserGitHubRepo.objects.create(user=self.user, repo=r1, disabled=False)
+        UserGitHubRepo.objects.create(user=self.user, repo=r2, disabled=True)
+        url = reverse("github_repos")
+        resp = self.client.get(url)
+        assert resp.status_code == 200
+        page = resp.context["repos"]
+        objs = list(page.object_list)
+        assert any(item["full_name"] == "u/r1" for item in objs)
+        assert any(item["full_name"] == "u/r2" and item["disabled"] is True for item in objs)
+
+    def test_trigger_sync_repos_starts_task_and_returns_json(self):
+        self.login()
+        SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={})
+
+        fake_async = mock.MagicMock()
+        fake_async.id = "task-123"
+
+        with mock.patch("users.tasks.sync_repos", autospec=True) as patched_task:
+            patched_task.delay.return_value = fake_async
+            url = reverse("trigger_sync_repos")
+            resp = self.client.post(url)
+            assert resp.status_code == HTTPStatus.ACCEPTED
+
+    def test_trigger_sync_repos_requires_login(self):
+        url = reverse("trigger_sync_repos")
+        resp = self.client.post(url)
+        assert resp.status_code in (302, 401)

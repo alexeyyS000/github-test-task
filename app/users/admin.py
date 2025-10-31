@@ -1,14 +1,25 @@
 from django.contrib import admin
-from django.contrib.auth import get_user_model
-
-from .models import GitHubRepo
-
-User = get_user_model()
-
+from .models import GitHubRepo, UserGitHubRepo
 
 @admin.register(GitHubRepo)
 class GitHubRepoAdmin(admin.ModelAdmin):
-    list_display = ("name", "full_name", "user", "stargazers_count", "forks_count", "language", "private")
-    list_filter = ("private", "language")
-    search_fields = ("name", "full_name", "user__username")
+    list_display = (
+        "id",
+        "github_id",
+        "name",
+        "full_name",
+        "html_url",
+        "language",
+        "stargazers_count",
+        "forks_count",
+    )
+    search_fields = ("name", "full_name", "github_id", "language")
     ordering = ("-stargazers_count",)
+    readonly_fields = ("github_id",)
+
+@admin.register(UserGitHubRepo)
+class UserGitHubRepoAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "repo", "disabled")
+    list_filter = ("disabled", "repo__language")
+    search_fields = ("user__username", "repo__name", "repo__full_name")
+    raw_id_fields = ("user", "repo")
