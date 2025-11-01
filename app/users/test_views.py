@@ -1,15 +1,19 @@
 from http import HTTPStatus
-from django.urls import reverse
-from django.contrib.auth import get_user_model
-from django.test import Client
-import pytest
-from allauth.socialaccount.models import SocialAccount, SocialApp
-from django.contrib.sites.models import Site
-from django.conf import settings
-from users.models import GitHubRepo, UserGitHubRepo
 from unittest import mock
 
+import pytest
+from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.models import SocialApp
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
+from django.test import Client
+from django.urls import reverse
+from users.models import GitHubRepo
+from users.models import UserGitHubRepo
+
 User = get_user_model()
+
 
 @pytest.mark.django_db
 class TestGitHubViews:
@@ -19,9 +23,7 @@ class TestGitHubViews:
         self.user.set_unusable_password()
         self.user.save()
         site_pk = settings.SITE_ID
-        Site.objects.get_or_create(
-            pk=site_pk, defaults={"domain": "example.local", "name": "example.local"}
-        )
+        Site.objects.get_or_create(pk=site_pk, defaults={"domain": "example.local", "name": "example.local"})
 
     def login(self):
         self.client.force_login(self.user)
@@ -30,22 +32,17 @@ class TestGitHubViews:
         app = SocialApp.objects.create(provider="github", name="GH", client_id="x", secret="s")
         site = Site.objects.get(pk=settings.SITE_ID)
         app.sites.add(site)
-
         url = reverse("login_github")
         resp = self.client.get(url)
         assert resp.status_code == 200
-
         content = resp.content.decode()
-
         assert resp.context is not None
         assert resp.context.get("github_app") is not None
         assert resp.context.get("github_app").pk == app.pk
-
         try:
             provider_url = reverse("socialaccount_login", args=["github"])
         except Exception:
             provider_url = "/github/login/"
-
         assert provider_url in content or "provider_login_url" in content or "github/login" in content
 
     def test_github_repos_view_without_social_account_shows_error(self):
@@ -83,7 +80,6 @@ class TestGitHubViews:
     def test_github_repos_view_shows_repos_and_disabled_flag(self):
         self.login()
         SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={"avatar_url": "http://x"})
-
         r1 = GitHubRepo.objects.create(
             github_id=1,
             name="r1",
@@ -114,7 +110,6 @@ class TestGitHubViews:
     def test_trigger_sync_repos_starts_task_and_returns_json(self):
         self.login()
         SocialAccount.objects.create(user=self.user, provider="github", uid="1", extra_data={})
-
         fake_async = mock.MagicMock()
         fake_async.id = "task-123"
 

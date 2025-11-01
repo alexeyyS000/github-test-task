@@ -28,13 +28,12 @@ else:
     load_dotenv(override=False)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY='django-insecure-@s662sthwv^%!gq8898kx!xuw#vibp%5338mjl939-#t-e3+no'
+SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = ["*"]
-
+ALLOWED_HOSTS = [x.strip() for x in os.environ["ALLOWED_HOSTS"].split(",")]
 
 # Application definition
 
@@ -169,8 +168,12 @@ LOGIN_REDIRECT_URL = "/users/github/repos/"
 LOGOUT_REDIRECT_URL = "/users/login/"
 
 
-CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1", "https://127.0.0.1"]
-
+CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.environ["CSRF_TRUSTED_ORIGINS"].split(",")]
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
+
+if DEBUG:
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+    }

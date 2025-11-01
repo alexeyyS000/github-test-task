@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+
 class GitHubRepo(models.Model):
     github_id = models.BigIntegerField(unique=True)
     name = models.CharField(max_length=300)
@@ -17,6 +18,7 @@ class GitHubRepo(models.Model):
 
     def __str__(self):
         return self.full_name
+
 
 class UserGitHubRepo(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)

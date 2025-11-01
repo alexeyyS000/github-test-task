@@ -1,17 +1,20 @@
 import logging
+
 import requests
-from allauth.socialaccount.models import SocialAccount, SocialToken
+from allauth.socialaccount.models import SocialAccount
+from allauth.socialaccount.models import SocialToken
 from celery import shared_task
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from users.models import GitHubRepo, UserGitHubRepo
+from users.models import GitHubRepo
+from users.models import UserGitHubRepo
+
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
+
 @shared_task(max_retries=3)
-def sync_repos(
-    user_id: int
-) :
+def sync_repos(user_id: int):
 
     try:
         user = User.objects.get(pk=user_id)
@@ -35,7 +38,6 @@ def sync_repos(
     r = requests.get("https://api.github.com/user/repos", headers=headers, params=params)
     page_data = r.json()
     api_repos.extend(page_data)
-
 
     api_map = {repo["id"]: repo for repo in api_repos}
     api_ids = set(api_map.keys())
@@ -72,16 +74,24 @@ def sync_repos(
             to_create_repos.append(GitHubRepo(github_id=github_id, **repo_fields))
             to_create_user_links.append(UserGitHubRepo(user=user, repo=to_create_repos[-1]))
 
-
     with transaction.atomic():
         if to_create_repos:
             GitHubRepo.objects.bulk_create(to_create_repos)
         if to_update_repos:
-            update_fields = ["name", "full_name", "html_url", "description", "stargazers_count", "forks_count", "language", "private"]
+            update_fields = [
+                "name",
+                "full_name",
+                "html_url",
+                "description",
+                "stargazers_count",
+                "forks_count",
+                "language",
+                "private",
+            ]
             GitHubRepo.objects.bulk_update(to_update_repos, update_fields)
         if kept_ids:
-                UserGitHubRepo.objects.filter(user=user).exclude(repo__github_id__in=kept_ids).update(disabled=True)
-                UserGitHubRepo.objects.bulk_create(to_create_user_links)
+            UserGitHubRepo.objects.filter(user=user).exclude(repo__github_id__in=kept_ids).update(disabled=True)
+            UserGitHubRepo.objects.bulk_create(to_create_user_links)
 
 
-#TODO servbot  Certbot
+# TODO servbot  Certbot
